@@ -1,0 +1,25 @@
+# Blueprint de Render: crea la API como Web Service gratuito usando el Dockerfile del repo.
+# La conexión a MongoDB Atlas se ingresa en el dashboard de Render (no se sube al repo).
+services:
+  - type: web
+    name: personal-notes-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      # La imagen aspnet:8.0 escucha en 8080; Render enruta al puerto indicado en PORT
+      - key: PORT
+        value: "8080"
+      # mongodb+srv://usuario:clave@cluster.xxxxx.mongodb.net/?retryWrites=true&w=majority
+      - key: ConnectionStrings__MongoUri
+        sync: false
+      - key: ConnectionStrings__MongoDb
+        value: personal-notes
+      # API Key de Google Gemini (https://aistudio.google.com/app/apikey); se ingresa en el dashboard
+      - key: Gemini__ApiKey
+        sync: false
+      # URL del front en Render (reemplaza al localhost de appsettings.json)
+      - key: Cors__AllowedOrigins__0
+        value: https://personal-notes-front.onrender.com

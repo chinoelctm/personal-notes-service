@@ -17,7 +17,7 @@ namespace PersonalNotes.Api.Endpoints
             group.MapGet("/status", GetStatusAsync)
                 .WithSummary("Indica si el asistente de IA está configurado (sin exponer la API Key) y el modelo en uso.");
             group.MapPost("/ask", AskAsync)
-                .WithSummary("Consulta al asistente (Google Gemini) con historial y, opcionalmente, un documento como contexto. 503 sin API Key, 429 por límite.");
+                .WithSummary("Consulta al asistente (Google Gemini) sobre tus notas: envía el catálogo y el contenido relevante de los documentos, el documento abierto (opcional) y el historial. Devuelve la respuesta y las fuentes. 503 sin API Key, 429 por límite.");
 
             return app;
         }

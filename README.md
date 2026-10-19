@@ -105,6 +105,11 @@ ninguna ordena en memoria (sin etapa `SORT`).
   `createdOn`) porque ordena los listados por última edición.
 - **Estadísticas del dashboard** (`DashboardCalculator`): total de notas y carpetas, desglose por prioridad
   y editadas en las últimas `Notes:RecentWindowHours` horas.
+- **Asistente sobre tus notas** (`NotesKnowledgeBuilder`): en cada pregunta la API arma una base de conocimiento con el
+  catálogo de todos los documentos (título, carpeta, prioridad, fecha) y el contenido en texto plano de los más
+  relevantes para la pregunta (coincidencia de palabras sin tildes, el título pesa más; sin coincidencias van los
+  editados más recientemente), con un tope de 40.000 caracteres. Gemini responde citando los documentos y la API
+  devuelve las fuentes. `searchNotes: false` desactiva la búsqueda.
 - **Respaldo**: `POST /backup` valida todo el archivo (Id repetidos, padres inexistentes, ciclos,
   profundidad, documentos huérfanos) antes de reemplazar los datos.
 
@@ -125,7 +130,7 @@ ninguna ordena en memoria (sin etapa `SORT`).
 | DELETE | `/documents/{id}` | 204, lo desactiva |
 | GET    | `/dashboard` | `{ totalDocuments, totalFolders, byPriority: { high, medium, low, none }, recentlyEdited, recentWindowHours, lastEditedOn }` |
 | GET    | `/assistant/status` | `{ configured, provider, model }` (nunca devuelve la clave) |
-| POST   | `/assistant/ask` | `{ answer, model }`, body `{ question, context: { title, text } | null, history: [{ role: User|Assistant, text }] }`. 503 sin clave, 429 límite, 502 error de Gemini |
+| POST   | `/assistant/ask` | `{ answer, model, sources: [{ id, title, path }] }`, body `{ question, searchNotes: true, context: { title, text, documentId } | null, history: [{ role: User|Assistant, text }] }`. 503 sin clave, 429 límite, 502 error de Gemini |
 | GET    | `/backup` | Respaldo completo `{ version, exportedOn, folders[], documents[] }` |
 | POST   | `/backup` | 200 `{ folders, documents }`, reemplaza todo por el respaldo enviado |
 

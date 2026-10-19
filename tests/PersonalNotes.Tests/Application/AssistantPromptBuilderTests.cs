@@ -19,14 +19,37 @@ namespace PersonalNotes.Tests.Application
         {
             var prompt = _builder.BuildPrompt("Resume en 3 puntos.", new DocumentContextDto("Sprint 28", "Entregables clave"));
 
-            Assert.Equal("Documento \"Sprint 28\":\n\"\"\"\nEntregables clave\n\"\"\"\n\nResume en 3 puntos.", prompt);
+            Assert.Equal("Documento abierto \"Sprint 28\":\n\"\"\"\nEntregables clave\n\"\"\"\n\nPregunta: Resume en 3 puntos.", prompt);
+        }
+
+        [Fact]
+        public void BuildPrompt_WithNotes_IncludesCatalogExcerptsAndCitationInstruction()
+        {
+            var knowledge = new NotesKnowledge("- Contrato (carpeta: Casa)", "### Contrato (carpeta: Casa)\nMonto 650.000", 1,
+                [new AssistantSourceDto("1", "Contrato", "Casa")]);
+
+            var prompt = _builder.BuildPrompt("¿Cuánto pago?", null, knowledge);
+
+            Assert.StartsWith("Notas del usuario (1 documento(s) en total):\n- Contrato (carpeta: Casa)", prompt);
+            Assert.Contains("Contenido de las notas más relevantes para la pregunta:\n### Contrato (carpeta: Casa)\nMonto 650.000", prompt);
+            Assert.Contains("menciona el título del documento", prompt);
+            Assert.EndsWith("Pregunta: ¿Cuánto pago?", prompt);
+        }
+
+        [Fact]
+        public void BuildPrompt_WithoutNotes_SaysTheUserHasNoDocuments()
+        {
+            var prompt = _builder.BuildPrompt("Hola", null, new NotesKnowledge("", "", 0, []));
+
+            Assert.Contains("(el usuario todavía no tiene documentos)", prompt);
+            Assert.DoesNotContain("Contenido de las notas", prompt);
         }
 
         [Fact]
         public void BuildPrompt_UsesDefaultsForEmptyTitleAndContent_AndTruncatesLongContext()
         {
             var vacio = _builder.BuildPrompt("Hola", new DocumentContextDto(" ", ""));
-            Assert.StartsWith("Documento \"Sin título\":\n\"\"\"\n(sin contenido)", vacio);
+            Assert.StartsWith("Documento abierto \"Sin título\":\n\"\"\"\n(sin contenido)", vacio);
 
             var largo = _builder.BuildPrompt("Hola", new DocumentContextDto("Nota", new string('a', AssistantPromptBuilder.MaxContextLength + 100)));
             Assert.Contains(new string('a', AssistantPromptBuilder.MaxContextLength) + "\n", largo);

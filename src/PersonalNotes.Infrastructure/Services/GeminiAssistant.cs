@@ -17,7 +17,8 @@ namespace PersonalNotes.Infrastructure.Services
     {
         private const string Instructions =
             "Eres el asistente de un gestor de notas personales. Responde en español, de forma clara y breve, " +
-            "usando listas cuando ayuden. Si se adjunta un documento, básate en él.";
+            "usando listas cuando ayuden. Cuando el mensaje incluye las notas del usuario o un documento abierto, " +
+            "básate en ellos y nombra los documentos que uses.";
 
         private readonly HttpClient _http;
         private readonly GeminiOptions _options;

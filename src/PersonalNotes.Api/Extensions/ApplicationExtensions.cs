@@ -26,6 +26,7 @@ namespace PersonalNotes.Api.Extensions
             services.AddScoped<IFolderGuard, FolderGuard>();
             services.AddSingleton<IDashboardCalculator, DashboardCalculator>();
             services.AddSingleton<AssistantPromptBuilder>();
+            services.AddSingleton<NotesKnowledgeBuilder>();
 
             return services;
         }

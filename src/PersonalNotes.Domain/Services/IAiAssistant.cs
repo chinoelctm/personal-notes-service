@@ -8,7 +8,7 @@ namespace PersonalNotes.Domain.Services
         /// <summary>true si hay API Key configurada.</summary>
         bool IsConfigured { get; }
 
-        /// <summary>Modelo configurado (ej. gemini-2.5-flash).</summary>
+        /// <summary>Modelo configurado (ej. gemini-3.8-flash).</summary>
         string Model { get; }
 
         /// <summary>Responde <paramref name="prompt"/> teniendo en cuenta la conversación previa.</summary>

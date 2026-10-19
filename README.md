@@ -25,7 +25,7 @@ Toda la configuración vive en `appsettings.json` (también se puede sobrescribi
 | `Notes:MaxFolderDepth` | `5` | Niveles máximos del árbol (mínimo 3) |
 | `Notes:RecentWindowHours` | `24` | Ventana de "editados recientemente" del dashboard |
 | `Gemini:ApiKey` | `""` (vacía) | API Key de Google Gemini; sin ella el asistente responde 503 |
-| `Gemini:Model` | `gemini-2.5-flash` | Modelo de Gemini |
+| `Gemini:Model` | `gemini-3.8-flash` | Modelo de Gemini |
 | `Gemini:BaseUrl` / `Gemini:TimeoutSeconds` | `https://generativelanguage.googleapis.com/v1beta/` / `60` | Endpoint y tiempo máximo de respuesta |
 | `Cors:AllowedOrigins` | `["http://localhost:4200"]` | Orígenes del front (política `FrontCorsPolicy`) |
 | `Kestrel:Limits:MaxRequestBodySize` | `52428800` (50 MB) | Documentos y respaldos con imágenes |
@@ -142,7 +142,7 @@ Errores: `ProblemDetails` (400 validación/regla con `errors` por campo, 404, 40
 2. **Render** (API): **New → Blueprint** y elegir este repo. El `render.yaml` crea un Web Service gratuito
    con el `Dockerfile` (multi-stage `sdk:8.0` → `aspnet:8.0`, puerto 8080) y `healthCheckPath: /api/v1/health`.
    Render pedirá los valores de `ConnectionStrings__MongoUri` (cadena de Atlas) y `Gemini__ApiKey`.
-3. Probar `https://personal-notes-service.onrender.com/api/v1/health`.
+3. Probar `https://personal-notes-service-hgni.onrender.com/api/v1/health`.
 
 Las variables de entorno de Render reemplazan a `appsettings.json` (`PORT=8080`,
 `ConnectionStrings__MongoUri`, `ConnectionStrings__MongoDb=personal-notes`, `Gemini__ApiKey`,

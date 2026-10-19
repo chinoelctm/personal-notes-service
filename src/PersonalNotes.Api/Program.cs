@@ -22,6 +22,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseExceptionHandler();
 app.UseCors(PresentationExtensions.FrontCorsPolicy);
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapHealthEndpoints();
 app.MapFolderEndpoints();

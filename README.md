@@ -4,6 +4,9 @@ API del gestor de notas y documentación personal: árbol de carpetas (hasta 5 n
 contenido enriquecido (HTML con imágenes en Base64) y banderitas de prioridad, estadísticas del inicio y
 respaldos completos, y un asistente de IA con Google Gemini (la API Key vive solo en el servidor). .NET 8 + MongoDB.
 
+Toda la API exige sesión, salvo `/health`: el access token JWT llega en la cookie HttpOnly `auth_token` que
+escribe [personal-notes-auth-services](https://github.com/chinoelctm/personal-notes-auth-services) (ver *Autenticación*).
+
 ## Ejecutar
 
 Requiere un MongoDB accesible. En local se usa el contenedor `mongodb` (usuario `root`, clave `root`,
@@ -27,7 +30,10 @@ Toda la configuración vive en `appsettings.json` (también se puede sobrescribi
 | `Gemini:ApiKey` | `""` (vacía) | API Key de Google Gemini; sin ella el asistente responde 503 |
 | `Gemini:Model` | `gemini-3.8-flash` | Modelo de Gemini |
 | `Gemini:BaseUrl` / `Gemini:TimeoutSeconds` | `https://generativelanguage.googleapis.com/v1beta/` / `60` | Endpoint y tiempo máximo de respuesta |
-| `Cors:AllowedOrigins` | `["http://localhost:4200"]` | Orígenes del front (política `FrontCorsPolicy`) |
+| `JwtSettings:PublicKeyPem` | clave pública del servicio de auth | Verifica la firma RS256 del access token (es pública: va en el repo) |
+| `JwtSettings:Issuer` / `Audience` | `PersonalNotes.Auth` / `PersonalNotes` | Deben coincidir con los del servicio de auth |
+| `JwtSettings:AccessTokenCookie` | `auth_token` | Cookie de la que se lee el token |
+| `Cors:AllowedOrigins` | `["http://localhost:4200"]` | Orígenes del front (política `FrontCorsPolicy`; con el proxy del front ya no se usa) |
 | `Kestrel:Limits:MaxRequestBodySize` | `52428800` (50 MB) | Documentos y respaldos con imágenes |
 
 Al arrancar, un worker en segundo plano (`MongoIndexInitializer`) primero migra los datos del antiguo borrado
@@ -46,6 +52,20 @@ la base responden **503** y `GET /api/v1/health` informa `Degraded`.
    - O pegarla en `Gemini:ApiKey` de `appsettings.json` solo en tu copia local (sin hacer commit de ese cambio).
    - En Render, en la variable de entorno `Gemini__ApiKey`.
 3. Verificar con `GET /api/v1/assistant/status` → `{ "configured": true, ... }`.
+
+## Autenticación
+
+`personal-notes-auth-services` emite el access token (JWT RS256, 15 min) y lo deja en la cookie HttpOnly
+`auth_token`. Esta API lo valida con la **clave pública** de `JwtSettings:PublicKeyPem` (firma, emisor, audiencia y
+vencimiento, con 30 s de tolerancia): puede verificar tokens pero no emitirlos. Todos los endpoints exigen
+sesión por política por defecto; solo `GET /api/v1/health` es anónimo (lo usa el health check de Render).
+
+Sin cookie, con un token vencido o con una firma inválida responde **401** (`ProblemDetails`); el front entonces
+llama a `/api/v1/auth/refresh` y reintenta. El front llega a esta API por el mismo origen (rewrite `/api/*` de su
+static site en Render, `proxy.conf.json` en desarrollo): por eso la cookie del sitio del front llega aquí.
+
+Si se rota la clave del servicio de auth, hay que actualizar `JwtSettings:PublicKeyPem` (o la variable
+`JwtSettings__PublicKeyPem` en Render).
 
 ## Arquitectura
 
@@ -121,6 +141,8 @@ ninguna ordena en memoria (sin etapa `SORT`).
 
 ## Endpoints (`/api/v1`)
 
+Todos requieren la cookie `auth_token` (401 sin sesión), salvo `/health`.
+
 | Método | Ruta | Respuesta |
 |---|---|---|
 | GET    | `/health` | `{ status, database }`: 200 `Healthy` o 503 `Degraded` si MongoDB no responde |
@@ -166,8 +188,9 @@ automáticos: usar *Exportar Respaldo* en la app.
 
 ## Front
 
-[personal-notes-front](https://github.com/chinoelctm/personal-notes-front) consume esta API. Los orígenes
-permitidos se configuran en `Cors:AllowedOrigins` de `appsettings.json` (por defecto `http://localhost:4200`).
+[personal-notes-front](https://github.com/chinoelctm/personal-notes-front) consume esta API por su mismo
+origen (rewrites de Render / proxy de `ng serve`), así que no depende de CORS; `Cors:AllowedOrigins` queda solo
+para llamadas directas desde `http://localhost:4200`.
 
 ## Limitaciones conocidas
 

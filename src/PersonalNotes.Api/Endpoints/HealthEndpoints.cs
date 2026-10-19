@@ -9,6 +9,7 @@ namespace PersonalNotes.Api.Endpoints
         {
             var group = app.MapGroup("/api/v1/health")
                 .WithTags("Health")
+                .AllowAnonymous()
                 .WithOpenApi();
 
             group.MapGet("/", GetAsync)

@@ -4,7 +4,9 @@ using PersonalNotes.Domain.ValueObjects;
 namespace PersonalNotes.Application.Commands.Documents.Add
 {
     /// <param name="Content">HTML del editor enriquecido.</param>
-    public record AddDocumentCommand(string FolderId, string? Title, string? Content, Priority Priority)
+    /// <param name="Type">Rich (por defecto) o Html.</param>
+    public record AddDocumentCommand(string FolderId, string? Title, string? Content, Priority Priority,
+        DocumentType? Type = null)
         : IRequest<AddDocumentResponse>;
 
     /// <param name="UpdatedOn">Fecha de publicación (UTC) asignada por la API.</param>

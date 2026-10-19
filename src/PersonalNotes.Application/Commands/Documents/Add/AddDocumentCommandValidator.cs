@@ -11,6 +11,7 @@ namespace PersonalNotes.Application.Commands.Documents.Add
             RuleFor(x => x.Title).MustBeValidTitle();
             RuleFor(x => x.Content).MustBeValidContent();
             RuleFor(x => x.Priority).MustBeValidPriority();
+            RuleFor(x => x.Type).IsInEnum().WithMessage("El tipo debe ser Rich o Html.");
         }
     }
 }

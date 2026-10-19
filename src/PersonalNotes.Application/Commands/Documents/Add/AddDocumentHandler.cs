@@ -4,6 +4,7 @@ using PersonalNotes.Application.Helpers;
 using PersonalNotes.Application.Services.Folders;
 using PersonalNotes.Domain.Entities;
 using PersonalNotes.Domain.Repositories;
+using PersonalNotes.Domain.ValueObjects;
 
 namespace PersonalNotes.Application.Commands.Documents.Add
 {
@@ -28,7 +29,7 @@ namespace PersonalNotes.Application.Commands.Documents.Add
             await _folderGuard.EnsureExistsAsync(command.FolderId, ct);
 
             var document = Document.Create(command.FolderId, command.Title, command.Content, command.Priority,
-                _timeHelper.GetUtcNow());
+                _timeHelper.GetUtcNow(), command.Type ?? DocumentType.Rich);
             await _repository.AddAsync(document, ct);
 
             _logger.LogInformation("Documento {DocumentId} ({Title}) publicado en la carpeta {FolderId}.",

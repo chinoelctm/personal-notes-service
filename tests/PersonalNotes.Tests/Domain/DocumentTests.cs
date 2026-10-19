@@ -63,6 +63,22 @@ namespace PersonalNotes.Tests.Domain
         }
 
         [Fact]
+        public void Type_DefaultsToRich_AndUpdateKeepsItUnlessChanged()
+        {
+            var nota = Document.Create(FolderId, "Nota", "<p>x</p>", Priority.None, Now);
+            var pagina = Document.Create(FolderId, "Página", "<html><script>1</script></html>", Priority.None, Now, DocumentType.Html);
+
+            Assert.Equal((DocumentType.Rich, DocumentType.Html), (nota.Type, pagina.Type));
+
+            pagina.Update(FolderId, "Página v2", "<html></html>", Priority.Low, Now.AddMinutes(1));
+            Assert.Equal(DocumentType.Html, pagina.Type);
+
+            pagina.Update(FolderId, "Página v3", "<p>ahora nota</p>", Priority.Low, Now.AddMinutes(2), DocumentType.Rich);
+            Assert.Equal(DocumentType.Rich, pagina.Type);
+            Assert.Throws<DomainException>(() => Document.Create(FolderId, "x", "", Priority.None, Now, (DocumentType)9));
+        }
+
+        [Fact]
         public void Restore_ConvertsLocalDatesToUtc()
         {
             var local = new DateTime(2026, 5, 1, 10, 0, 0, DateTimeKind.Local);

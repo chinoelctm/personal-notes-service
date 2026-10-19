@@ -43,16 +43,17 @@ namespace PersonalNotes.Application.DTOs
         Priority Priority,
         DateTime CreatedOn,
         DateTime UpdatedOn,
+        DocumentType Type = DocumentType.Rich,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Enabled = null)
     {
         public static DocumentBackupDto From(Document document) => new(
             document.Id, document.FolderId, document.Title, document.Content, document.Priority,
-            document.CreatedOn, document.UpdatedOn);
+            document.CreatedOn, document.UpdatedOn, document.Type);
 
         [JsonIgnore]
         public bool IsDeleted => Enabled == false;
 
         public Document ToEntity() =>
-            Document.Restore(Id, FolderId, Title, Content, Priority, CreatedOn, UpdatedOn);
+            Document.Restore(Id, FolderId, Title, Content, Priority, CreatedOn, UpdatedOn, Type);
     }
 }

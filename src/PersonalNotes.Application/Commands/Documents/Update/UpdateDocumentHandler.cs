@@ -35,7 +35,8 @@ namespace PersonalNotes.Application.Commands.Documents.Update
             if (document.FolderId != command.FolderId)
                 await _folderGuard.EnsureExistsAsync(command.FolderId, ct);
 
-            document.Update(command.FolderId, command.Title, command.Content, command.Priority, _timeHelper.GetUtcNow());
+            document.Update(command.FolderId, command.Title, command.Content, command.Priority, _timeHelper.GetUtcNow(),
+                command.Type);
             await _repository.UpdateAsync(document, ct);
 
             _logger.LogInformation("Documento {DocumentId} ({Title}) publicado; prioridad {Priority}.",

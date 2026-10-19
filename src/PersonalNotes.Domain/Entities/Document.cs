@@ -37,6 +37,11 @@ namespace PersonalNotes.Domain.Entities
         [BsonRepresentation(BsonType.String)]
         public Priority Priority { get; private set; }
 
+        // Sin el campo (documentos anteriores) se deserializa como Rich, el valor por defecto
+        [BsonElement("type")]
+        [BsonRepresentation(BsonType.String)]
+        public DocumentType Type { get; private set; }
+
         [BsonElement("createdOn")] public DateTime CreatedOn { get; private set; }
 
         [BsonElement("updatedOn")] public DateTime UpdatedOn { get; private set; }
@@ -46,41 +51,45 @@ namespace PersonalNotes.Domain.Entities
         }
 
         private Document(string id, string folderId, string title, string content, Priority priority,
-            DateTime createdOn, DateTime updatedOn)
+            DocumentType type, DateTime createdOn, DateTime updatedOn)
         {
             Id = id;
             FolderId = folderId;
             Title = title;
             Content = content;
             Priority = priority;
+            Type = type;
             CreatedOn = createdOn;
             UpdatedOn = updatedOn;
         }
 
-        public static Document Create(string folderId, string? title, string? content, Priority priority, DateTime now)
+        public static Document Create(string folderId, string? title, string? content, Priority priority, DateTime now,
+            DocumentType type = DocumentType.Rich)
         {
             return new Document(ObjectIds.New(), ValidateFolder(folderId), NormalizeTitle(title),
-                ValidateContent(content), ValidatePriority(priority), now, now);
+                ValidateContent(content), ValidatePriority(priority), ValidateType(type), now, now);
         }
 
         /// <summary>Documento restaurado desde un respaldo, con su Id y fechas originales.</summary>
         public static Document Restore(string id, string folderId, string? title, string? content, Priority priority,
-            DateTime createdOn, DateTime updatedOn)
+            DateTime createdOn, DateTime updatedOn, DocumentType type = DocumentType.Rich)
         {
             if (!ObjectIds.IsValid(id))
                 throw new DomainException("El Id del documento no es válido.");
 
             return new Document(id, ValidateFolder(folderId), NormalizeTitle(title), ValidateContent(content),
-                ValidatePriority(priority), ToUtc(createdOn), ToUtc(updatedOn));
+                ValidatePriority(priority), ValidateType(type), ToUtc(createdOn), ToUtc(updatedOn));
         }
 
         /// <summary>Publica una nueva versión (título, contenido, prioridad) y/o mueve el documento de carpeta.</summary>
-        public void Update(string folderId, string? title, string? content, Priority priority, DateTime now)
+        public void Update(string folderId, string? title, string? content, Priority priority, DateTime now,
+            DocumentType? type = null)
         {
             FolderId = ValidateFolder(folderId);
             Title = NormalizeTitle(title);
             Content = ValidateContent(content);
             Priority = ValidatePriority(priority);
+            if (type is not null) Type = ValidateType(type.Value);
             UpdatedOn = now;
         }
 
@@ -106,6 +115,13 @@ namespace PersonalNotes.Domain.Entities
             if (!ObjectIds.IsValid(folderId?.Trim()))
                 throw new DomainException("La carpeta del documento no es válida.");
             return folderId!.Trim();
+        }
+
+        private static DocumentType ValidateType(DocumentType type)
+        {
+            if (!Enum.IsDefined(type))
+                throw new DomainException("El tipo de documento no es válido.");
+            return type;
         }
 
         private static Priority ValidatePriority(Priority priority)

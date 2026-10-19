@@ -10,7 +10,8 @@ namespace PersonalNotes.Application.Services.Assistant
 
     /// <param name="Catalog">Una línea por documento (título, carpeta, prioridad, fecha): permite responder "qué notas tengo".</param>
     /// <param name="Excerpts">Contenido de los documentos más relevantes para la pregunta.</param>
-    /// <param name="Sources">Documentos cuyo contenido se envió (el front los muestra como fuentes).</param>
+    /// <param name="Sources">Documentos que coinciden con la pregunta y cuyo contenido se envió (el front los muestra como fuentes).
+    /// Vacío si ninguno coincidió: las notas recientes se envían igual como contexto, pero no son fuentes.</param>
     public record NotesKnowledge(string Catalog, string Excerpts, int TotalNotes, List<AssistantSourceDto> Sources);
 
     /// <summary>
@@ -54,19 +55,22 @@ namespace PersonalNotes.Application.Services.Assistant
                 .ToList();
 
             // Sin coincidencias ("resume lo último que escribí"): los editados más recientemente
-            if (ranked.Count == 0)
+            var matched = ranked.Count > 0;
+            if (!matched)
                 ranked = candidates.OrderByDescending(n => n.UpdatedOn).Take(MaxNotesWithoutMatch).ToList();
 
             var excerpts = new StringBuilder();
             var sources = new List<AssistantSourceDto>();
+            var included = 0;
             foreach (var note in ranked)
             {
                 var text = note.Text.Length > MaxNoteLength ? note.Text[..MaxNoteLength] + "…" : note.Text;
                 var block = $"### {note.Title} (carpeta: {note.Path})\n{(text.Length == 0 ? "(sin contenido)" : text)}\n\n";
-                if (excerpts.Length + block.Length > MaxExcerptsLength && sources.Count > 0) break;
+                if (excerpts.Length + block.Length > MaxExcerptsLength && included > 0) break;
 
                 excerpts.Append(block);
-                sources.Add(new AssistantSourceDto(note.Id, note.Title, note.Path));
+                if (matched) sources.Add(new AssistantSourceDto(note.Id, note.Title, note.Path));
+                included++;
             }
 
             return new NotesKnowledge(catalog, excerpts.ToString().TrimEnd(), notes.Count, sources);

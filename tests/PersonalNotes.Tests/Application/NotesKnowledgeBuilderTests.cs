@@ -39,11 +39,13 @@ namespace PersonalNotes.Tests.Application
         }
 
         [Fact]
-        public void Build_WithoutMatches_SendsTheMostRecentNotes()
+        public void Build_WithoutMatches_SendsTheMostRecentNotes_ButNoSources()
         {
             var knowledge = _builder.Build("Resume lo último", _notes);
 
-            Assert.Equal(["staging", "pan", "arriendo"], knowledge.Sources.Select(s => s.Id));
+            Assert.Empty(knowledge.Sources);
+            Assert.True(knowledge.Excerpts.IndexOf("servidor de staging") < knowledge.Excerpts.IndexOf("pan de masa madre"));
+            Assert.Contains("650.000 CLP", knowledge.Excerpts);
         }
 
         [Fact]

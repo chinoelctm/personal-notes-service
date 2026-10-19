@@ -6,9 +6,11 @@ using PersonalNotes.Domain.ValueObjects;
 namespace PersonalNotes.Domain.Entities
 {
     /// <summary>
-    /// Carpeta del árbol de documentos. Sin <see cref="ParentFolderId"/> es una carpeta raíz. Eliminarla la
-    /// desactiva (junto con sus subcarpetas y documentos), así un respaldo anterior sigue siendo coherente.
+    /// Carpeta del árbol de documentos. Sin <see cref="ParentFolderId"/> es una carpeta raíz. Eliminarla la borra
+    /// físicamente junto con sus subcarpetas y documentos (no quedan registros desactivados en la base).
     /// </summary>
+    // Tolera campos que ya no existen en el modelo (ej. "enabled" del antiguo borrado lógico) mientras corre la migración
+    [BsonIgnoreExtraElements]
     public class Folder
     {
         public const int MaxNameLength = 80;
@@ -19,15 +21,13 @@ namespace PersonalNotes.Domain.Entities
 
         [BsonElement("name")] public string Name { get; private set; } = null!;
 
-        // Nombre en minúsculas, para el índice único (no puede haber dos hermanas activas con el mismo nombre)
+        // Nombre en minúsculas, para el índice único (no puede haber dos hermanas con el mismo nombre)
         [BsonElement("normalizedName")] public string NormalizedName { get; private set; } = null!;
 
         // Las raíces guardan null explícito: así el índice único (parentFolderId, normalizedName) también las cubre
         [BsonElement("parentFolderId")]
         [BsonRepresentation(BsonType.ObjectId)]
         public string? ParentFolderId { get; private set; }
-
-        [BsonElement("enabled")] public bool Enabled { get; private set; }
 
         [BsonElement("createdOn")] public DateTime CreatedOn { get; private set; }
 
@@ -37,14 +37,12 @@ namespace PersonalNotes.Domain.Entities
         {
         }
 
-        private Folder(string id, string name, string? parentFolderId, bool enabled, DateTime createdOn,
-            DateTime updatedOn)
+        private Folder(string id, string name, string? parentFolderId, DateTime createdOn, DateTime updatedOn)
         {
             Id = id;
             Name = name;
             NormalizedName = Normalize(name);
             ParentFolderId = parentFolderId;
-            Enabled = enabled;
             CreatedOn = createdOn;
             UpdatedOn = updatedOn;
         }
@@ -52,12 +50,11 @@ namespace PersonalNotes.Domain.Entities
         public static Folder Create(string name, string? parentFolderId, DateTime now)
         {
             ValidateName(name);
-            return new Folder(ObjectIds.New(), name.Trim(), ValidateParent(parentFolderId), enabled: true, now, now);
+            return new Folder(ObjectIds.New(), name.Trim(), ValidateParent(parentFolderId), now, now);
         }
 
         /// <summary>Carpeta restaurada desde un respaldo, con su Id y fechas originales.</summary>
-        public static Folder Restore(string id, string name, string? parentFolderId, bool enabled, DateTime createdOn,
-            DateTime updatedOn)
+        public static Folder Restore(string id, string name, string? parentFolderId, DateTime createdOn, DateTime updatedOn)
         {
             if (!ObjectIds.IsValid(id))
                 throw new DomainException("El Id de la carpeta no es válido.");
@@ -67,7 +64,7 @@ namespace PersonalNotes.Domain.Entities
             if (parent == id)
                 throw new BusinessRuleException("Una carpeta no puede ser su propia carpeta padre.");
 
-            return new Folder(id, name.Trim(), parent, enabled, ToUtc(createdOn), ToUtc(updatedOn));
+            return new Folder(id, name.Trim(), parent, ToUtc(createdOn), ToUtc(updatedOn));
         }
 
         public bool IsRoot => ParentFolderId is null;
@@ -75,9 +72,6 @@ namespace PersonalNotes.Domain.Entities
         /// <summary>Renombra y/o mueve la carpeta. La profundidad y los ciclos se validan con el árbol completo.</summary>
         public void Update(string name, string? parentFolderId, DateTime now)
         {
-            if (!Enabled)
-                throw new BusinessRuleException("La carpeta fue eliminada; no se puede modificar.");
-
             ValidateName(name);
             var parent = ValidateParent(parentFolderId);
             if (parent == Id)
@@ -86,13 +80,6 @@ namespace PersonalNotes.Domain.Entities
             Name = name.Trim();
             NormalizedName = Normalize(Name);
             ParentFolderId = parent;
-            UpdatedOn = now;
-        }
-
-        public void Disable(DateTime now)
-        {
-            if (!Enabled) return;
-            Enabled = false;
             UpdatedOn = now;
         }
 

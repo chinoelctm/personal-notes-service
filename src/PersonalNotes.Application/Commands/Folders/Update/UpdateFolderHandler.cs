@@ -29,7 +29,7 @@ namespace PersonalNotes.Application.Commands.Folders.Update
         public async Task Handle(UpdateFolderCommand command, CancellationToken ct)
         {
             var folder = await _repository.GetByIdAsync(command.Id, ct);
-            if (folder is null || !folder.Enabled)
+            if (folder is null)
             {
                 _logger.LogError("No existe la carpeta {FolderId}.", command.Id);
                 throw new NotFoundException("La carpeta no existe.");
@@ -45,7 +45,7 @@ namespace PersonalNotes.Application.Commands.Folders.Update
                 hierarchy.EnsureCanPlace(folder.Id, folder.ParentFolderId, _options.MaxFolderDepth);
             }
 
-            if (await _repository.ExistsActiveByNameAsync(folder.ParentFolderId, folder.Name, excludeId: folder.Id, ct))
+            if (await _repository.ExistsByNameAsync(folder.ParentFolderId, folder.Name, excludeId: folder.Id, ct))
                 throw new ConflictException("Ya existe una carpeta con ese nombre en la misma ubicación.");
 
             await _repository.UpdateAsync(folder, ct);

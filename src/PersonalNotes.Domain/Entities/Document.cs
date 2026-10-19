@@ -10,6 +10,8 @@ namespace PersonalNotes.Domain.Entities
     /// traer imágenes incrustadas en Base64. <see cref="UpdatedOn"/> siempre tiene valor (al crear es igual a
     /// <see cref="CreatedOn"/>) porque ordena los listados por última edición.
     /// </summary>
+    // Tolera campos que ya no existen en el modelo (ej. "enabled" del antiguo borrado lógico) mientras corre la migración
+    [BsonIgnoreExtraElements]
     public class Document
     {
         public const int MaxTitleLength = 200;
@@ -35,8 +37,6 @@ namespace PersonalNotes.Domain.Entities
         [BsonRepresentation(BsonType.String)]
         public Priority Priority { get; private set; }
 
-        [BsonElement("enabled")] public bool Enabled { get; private set; }
-
         [BsonElement("createdOn")] public DateTime CreatedOn { get; private set; }
 
         [BsonElement("updatedOn")] public DateTime UpdatedOn { get; private set; }
@@ -45,7 +45,7 @@ namespace PersonalNotes.Domain.Entities
         {
         }
 
-        private Document(string id, string folderId, string title, string content, Priority priority, bool enabled,
+        private Document(string id, string folderId, string title, string content, Priority priority,
             DateTime createdOn, DateTime updatedOn)
         {
             Id = id;
@@ -53,7 +53,6 @@ namespace PersonalNotes.Domain.Entities
             Title = title;
             Content = content;
             Priority = priority;
-            Enabled = enabled;
             CreatedOn = createdOn;
             UpdatedOn = updatedOn;
         }
@@ -61,37 +60,27 @@ namespace PersonalNotes.Domain.Entities
         public static Document Create(string folderId, string? title, string? content, Priority priority, DateTime now)
         {
             return new Document(ObjectIds.New(), ValidateFolder(folderId), NormalizeTitle(title),
-                ValidateContent(content), ValidatePriority(priority), enabled: true, now, now);
+                ValidateContent(content), ValidatePriority(priority), now, now);
         }
 
         /// <summary>Documento restaurado desde un respaldo, con su Id y fechas originales.</summary>
         public static Document Restore(string id, string folderId, string? title, string? content, Priority priority,
-            bool enabled, DateTime createdOn, DateTime updatedOn)
+            DateTime createdOn, DateTime updatedOn)
         {
             if (!ObjectIds.IsValid(id))
                 throw new DomainException("El Id del documento no es válido.");
 
             return new Document(id, ValidateFolder(folderId), NormalizeTitle(title), ValidateContent(content),
-                ValidatePriority(priority), enabled, ToUtc(createdOn), ToUtc(updatedOn));
+                ValidatePriority(priority), ToUtc(createdOn), ToUtc(updatedOn));
         }
 
         /// <summary>Publica una nueva versión (título, contenido, prioridad) y/o mueve el documento de carpeta.</summary>
         public void Update(string folderId, string? title, string? content, Priority priority, DateTime now)
         {
-            if (!Enabled)
-                throw new BusinessRuleException("El documento fue eliminado; no se puede editar.");
-
             FolderId = ValidateFolder(folderId);
             Title = NormalizeTitle(title);
             Content = ValidateContent(content);
             Priority = ValidatePriority(priority);
-            UpdatedOn = now;
-        }
-
-        public void Disable(DateTime now)
-        {
-            if (!Enabled) return;
-            Enabled = false;
             UpdatedOn = now;
         }
 

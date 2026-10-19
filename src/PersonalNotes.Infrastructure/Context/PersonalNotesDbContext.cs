@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Driver;
 using PersonalNotes.Domain.Entities;
 
@@ -8,6 +9,9 @@ namespace PersonalNotes.Infrastructure.Context
         // Solo los índices con estos prefijos los administra la aplicación (se crean y se eliminan si dejan de usarse)
         private static readonly string[] ManagedIndexPrefixes = ["ix_", "ux_"];
 
+        private const string FoldersCollection = "folders";
+        private const string DocumentsCollection = "documents";
+
         public IMongoDatabase Database { get; }
 
         public IMongoCollection<Folder> Folders { get; }
@@ -17,8 +21,31 @@ namespace PersonalNotes.Infrastructure.Context
         {
             Database = client.GetDatabase(databaseName);
 
-            Folders = Database.GetCollection<Folder>("folders");
-            Documents = Database.GetCollection<Document>("documents");
+            Folders = Database.GetCollection<Folder>(FoldersCollection);
+            Documents = Database.GetCollection<Document>(DocumentsCollection);
+        }
+
+        /// <summary>
+        /// Migración del borrado lógico al físico: borra los registros que quedaron con <c>enabled: false</c> y quita
+        /// el campo de los demás. Es idempotente; tras la primera ejecución no encuentra nada que cambiar.
+        /// </summary>
+        public async Task<(long Deleted, long Cleaned)> RemoveLogicalDeletesAsync(CancellationToken ct = default)
+        {
+            long deleted = 0, cleaned = 0;
+            foreach (var name in new[] { DocumentsCollection, FoldersCollection })
+            {
+                var collection = Database.GetCollection<BsonDocument>(name);
+
+                var removed = await collection.DeleteManyAsync(new BsonDocument("enabled", false), ct);
+                var updated = await collection.UpdateManyAsync(
+                    new BsonDocument("enabled", new BsonDocument("$exists", true)),
+                    new BsonDocument("$unset", new BsonDocument("enabled", "")),
+                    cancellationToken: ct);
+
+                deleted += removed.DeletedCount;
+                cleaned += updated.ModifiedCount;
+            }
+            return (deleted, cleaned);
         }
 
         /// <summary>
@@ -33,44 +60,33 @@ namespace PersonalNotes.Infrastructure.Context
 
         private static IReadOnlyList<CreateIndexModel<Folder>> FolderIndexes() =>
         [
-            // ExistsActiveByName + no puede haber dos carpetas hermanas activas con el mismo nombre
+            // ExistsByName + no puede haber dos carpetas hermanas con el mismo nombre
             // (las raíces comparten parentFolderId: null)
             new CreateIndexModel<Folder>(
                 Builders<Folder>.IndexKeys
                     .Ascending(x => x.ParentFolderId)
                     .Ascending(x => x.NormalizedName),
-                new CreateIndexOptions<Folder>
-                {
-                    Name = "ux_folders_parent_name",
-                    Unique = true,
-                    PartialFilterExpression = Builders<Folder>.Filter.Eq(x => x.Enabled, true)
-                }),
+                new CreateIndexOptions { Name = "ux_folders_name_in_parent", Unique = true }),
 
-            // GetActive (filtro enabled + orden por nombre) y GetAll del respaldo (mismo orden, sin filtro);
-            // DisableMany filtra por _id
+            // GetAll: todas las carpetas ordenadas por nombre (árbol y respaldo)
             new CreateIndexModel<Folder>(
-                Builders<Folder>.IndexKeys
-                    .Ascending(x => x.Enabled)
-                    .Ascending(x => x.NormalizedName),
-                new CreateIndexOptions { Name = "ix_folders_active_name" })
+                Builders<Folder>.IndexKeys.Ascending(x => x.NormalizedName),
+                new CreateIndexOptions { Name = "ix_folders_name" })
         ];
 
         private static IReadOnlyList<CreateIndexModel<Document>> DocumentIndexes() =>
         [
-            // GetActive y GetActiveStamps (filtro enabled + orden por última edición) y GetAll del respaldo
+            // GetAll y GetStamps: orden por última edición (buscador, dashboard, asistente, respaldo)
             new CreateIndexModel<Document>(
-                Builders<Document>.IndexKeys
-                    .Ascending(x => x.Enabled)
-                    .Descending(x => x.UpdatedOn),
-                new CreateIndexOptions { Name = "ix_documents_active_updated" }),
+                Builders<Document>.IndexKeys.Descending(x => x.UpdatedOn),
+                new CreateIndexOptions { Name = "ix_documents_updated" }),
 
-            // GetActiveByFolder (vista de directorio ya ordenada) y DisableByFolders (folderId $in + enabled)
+            // GetByFolder (vista de directorio ya ordenada) y DeleteByFolders (folderId $in)
             new CreateIndexModel<Document>(
                 Builders<Document>.IndexKeys
                     .Ascending(x => x.FolderId)
-                    .Ascending(x => x.Enabled)
                     .Descending(x => x.UpdatedOn),
-                new CreateIndexOptions { Name = "ix_documents_folder_updated" })
+                new CreateIndexOptions { Name = "ix_documents_folder_updated_on" })
         ];
 
         private static async Task SyncIndexesAsync<T>(IMongoCollection<T> collection,

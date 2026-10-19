@@ -3,7 +3,7 @@ using PersonalNotes.Infrastructure.Context;
 namespace PersonalNotes.Api.Workers
 {
     /// <summary>
-    /// Crea los índices de MongoDB en segundo plano. Si la base no responde al arrancar (por ejemplo,
+    /// Migra los registros del antiguo borrado lógico y crea los índices de MongoDB en segundo plano. Si la base no responde al arrancar (por ejemplo,
     /// Atlas bloquea la IP o aún no está disponible), la API sigue levantada y se reintenta con
     /// espera creciente en vez de detener el proceso.
     /// </summary>
@@ -31,6 +31,12 @@ namespace PersonalNotes.Api.Workers
             {
                 try
                 {
+                    // Antes de los índices: los nuevos (sin enabled) son únicos solo si ya no quedan registros desactivados
+                    var (deleted, cleaned) = await _context.RemoveLogicalDeletesAsync(stoppingToken);
+                    if (deleted + cleaned > 0)
+                        _logger.LogInformation("Migración a borrado físico: {Deleted} registro(s) desactivados borrados, {Cleaned} actualizado(s).",
+                            deleted, cleaned);
+
                     await _context.EnsureIndexesAsync(stoppingToken);
                     _logger.LogInformation("Índices de MongoDB verificados (intento {Attempt}).", attempt);
                     return;

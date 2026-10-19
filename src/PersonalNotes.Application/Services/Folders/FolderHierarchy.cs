@@ -4,8 +4,8 @@ using PersonalNotes.Domain.Exceptions;
 namespace PersonalNotes.Application.Services.Folders
 {
     /// <summary>
-    /// Árbol de carpetas activas en memoria: profundidad, ruta, descendientes y validación de movimientos.
-    /// Una carpeta raíz es el nivel 1. Una carpeta cuyo padre no está en el árbol (inactivo o inexistente)
+    /// Árbol de carpetas en memoria: profundidad, ruta, descendientes y validación de movimientos.
+    /// Una carpeta raíz es el nivel 1. Una carpeta cuyo padre no está en el árbol (dato inconsistente)
     /// se trata como raíz, para que un dato inconsistente no rompa el listado.
     /// </summary>
     public class FolderHierarchy

@@ -19,15 +19,15 @@ namespace PersonalNotes.Api.Endpoints
                 .WithOpenApi();
 
             group.MapGet("/", GetAsync)
-                .WithSummary("Todos los documentos activos con su contenido, el editado más recientemente primero.");
+                .WithSummary("Todos los documentos con su contenido, el editado más recientemente primero.");
             group.MapGet("/{documentId}", GetByIdAsync)
-                .WithSummary("Documento activo por Id.");
+                .WithSummary("Documento por Id.");
             group.MapPost("/", AddAsync)
                 .WithSummary("Publica un documento nuevo en una carpeta. Las fechas de auditoría se asignan en UTC.");
             group.MapPut("/{documentId}", UpdateAsync)
                 .WithSummary("Publica la versión editada (título, contenido, prioridad) y/o mueve el documento de carpeta.");
             group.MapDelete("/{documentId}", DeleteAsync)
-                .WithSummary("Elimina (desactiva) el documento.");
+                .WithSummary("Borra el documento de forma permanente.");
 
             return app;
         }

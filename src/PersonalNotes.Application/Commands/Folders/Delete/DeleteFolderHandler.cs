@@ -1,6 +1,5 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
-using PersonalNotes.Application.Helpers;
 using PersonalNotes.Application.Services.Folders;
 using PersonalNotes.Domain.Exceptions;
 using PersonalNotes.Domain.Repositories;
@@ -12,16 +11,14 @@ namespace PersonalNotes.Application.Commands.Folders.Delete
         private readonly IFolderRepository _folders;
         private readonly IDocumentRepository _documents;
         private readonly IFolderHierarchyProvider _hierarchyProvider;
-        private readonly TimeHelper _timeHelper;
         private readonly ILogger<DeleteFolderHandler> _logger;
 
         public DeleteFolderHandler(IFolderRepository folders, IDocumentRepository documents,
-            IFolderHierarchyProvider hierarchyProvider, TimeHelper timeHelper, ILogger<DeleteFolderHandler> logger)
+            IFolderHierarchyProvider hierarchyProvider, ILogger<DeleteFolderHandler> logger)
         {
             _folders = folders;
             _documents = documents;
             _hierarchyProvider = hierarchyProvider;
-            _timeHelper = timeHelper;
             _logger = logger;
         }
 
@@ -34,14 +31,14 @@ namespace PersonalNotes.Application.Commands.Folders.Delete
                 throw new NotFoundException("La carpeta no existe.");
             }
 
-            var now = _timeHelper.GetUtcNow();
             var subtree = hierarchy.SubtreeOf(command.Id);
 
             // Primero los documentos: si falla a mitad, las carpetas siguen visibles y se puede reintentar
-            var documents = await _documents.DisableByFoldersAsync(subtree, now, ct);
-            var folders = await _folders.DisableManyAsync(subtree, now, ct);
+            // sin dejar documentos huérfanos
+            var documents = await _documents.DeleteByFoldersAsync(subtree, ct);
+            var folders = await _folders.DeleteManyAsync(subtree, ct);
 
-            _logger.LogInformation("Carpeta {FolderId} eliminada: {Folders} carpeta(s) y {Documents} documento(s) desactivados.",
+            _logger.LogInformation("Carpeta {FolderId} borrada: {Folders} carpeta(s) y {Documents} documento(s).",
                 command.Id, folders, documents);
         }
     }

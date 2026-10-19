@@ -26,8 +26,9 @@ namespace PersonalNotes.Application.Commands.Backup.Import
 
         public async Task<ImportBackupResponse> Handle(ImportBackupCommand command, CancellationToken ct)
         {
-            var folders = command.Backup.Folders.Select(f => f.ToEntity()).ToList();
-            var documents = command.Backup.Documents.Select(d => d.ToEntity()).ToList();
+            // Respaldos de la versión 1 (borrado lógico): lo marcado como eliminado no se restaura
+            var folders = command.Backup.Folders.Where(f => !f.IsDeleted).Select(f => f.ToEntity()).ToList();
+            var documents = command.Backup.Documents.Where(d => !d.IsDeleted).Select(d => d.ToEntity()).ToList();
 
             // Todo se valida antes de borrar: un respaldo inválido no deja la base a medias
             ValidateFolders(folders);
@@ -46,22 +47,21 @@ namespace PersonalNotes.Application.Commands.Backup.Import
             if (folders.Select(f => f.Id).Distinct().Count() != folders.Count)
                 throw new BusinessRuleException("El respaldo tiene carpetas con el Id repetido.");
 
-            var active = folders.Where(f => f.Enabled).ToList();
-            var activeIds = active.Select(f => f.Id).ToHashSet();
+            var ids = folders.Select(f => f.Id).ToHashSet();
 
-            var orphan = active.FirstOrDefault(f => f.ParentFolderId is not null && !activeIds.Contains(f.ParentFolderId));
+            var orphan = folders.FirstOrDefault(f => f.ParentFolderId is not null && !ids.Contains(f.ParentFolderId));
             if (orphan is not null)
-                throw new BusinessRuleException($"La carpeta \"{orphan.Name}\" apunta a una carpeta padre inexistente o eliminada.");
+                throw new BusinessRuleException($"La carpeta \"{orphan.Name}\" apunta a una carpeta padre que no está en el respaldo.");
 
-            var duplicated = active
+            var duplicated = folders
                 .GroupBy(f => (f.ParentFolderId, f.NormalizedName))
                 .FirstOrDefault(g => g.Count() > 1);
             if (duplicated is not null)
                 throw new BusinessRuleException($"El respaldo tiene dos carpetas \"{duplicated.First().Name}\" en la misma ubicación.");
 
             // Con todos los padres presentes, un camino a la raíz más corto que la cadena real indica un ciclo
-            var hierarchy = new FolderHierarchy(active);
-            foreach (var folder in active)
+            var hierarchy = new FolderHierarchy(folders);
+            foreach (var folder in folders)
             {
                 var path = hierarchy.PathOf(folder.Id);
                 if (path[0].ParentFolderId is not null)
@@ -77,12 +77,11 @@ namespace PersonalNotes.Application.Commands.Backup.Import
             if (documents.Select(d => d.Id).Distinct().Count() != documents.Count)
                 throw new BusinessRuleException("El respaldo tiene documentos con el Id repetido.");
 
-            var folderIds = folders.ToDictionary(f => f.Id, f => f.Enabled);
-            var orphan = documents.FirstOrDefault(d =>
-                !folderIds.TryGetValue(d.FolderId, out var folderEnabled) || (d.Enabled && !folderEnabled));
+            var folderIds = folders.Select(f => f.Id).ToHashSet();
+            var orphan = documents.FirstOrDefault(d => !folderIds.Contains(d.FolderId));
 
             if (orphan is not null)
-                throw new BusinessRuleException($"El documento \"{orphan.Title}\" apunta a una carpeta inexistente o eliminada.");
+                throw new BusinessRuleException($"El documento \"{orphan.Title}\" apunta a una carpeta que no está en el respaldo.");
         }
     }
 }

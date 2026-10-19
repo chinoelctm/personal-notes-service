@@ -55,37 +55,22 @@ namespace PersonalNotes.Infrastructure.Persistence
                 .ConfigureAwait(false);
         }
 
-        // Mismo orden que ix_folders_active_name: se resuelve con el índice
-        private static readonly SortDefinition<Folder> NameOrder = Builders<Folder>.Sort
-            .Ascending(x => x.Enabled)
-            .Ascending(x => x.NormalizedName);
-
-        public async Task<List<Folder>> GetActiveAsync(CancellationToken ct = default)
-        {
-            return await _folders
-                .Find(Builders<Folder>.Filter.Eq(x => x.Enabled, true))
-                .Sort(NameOrder)
-                .ToListAsync(ct)
-                .ConfigureAwait(false);
-        }
-
         public async Task<List<Folder>> GetAllAsync(CancellationToken ct = default)
         {
+            // Mismo orden que ix_folders_name: se resuelve con el índice
             return await _folders
                 .Find(Builders<Folder>.Filter.Empty)
-                .Sort(NameOrder)
+                .Sort(Builders<Folder>.Sort.Ascending(x => x.NormalizedName))
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
         }
 
-        public async Task<bool> ExistsActiveByNameAsync(string? parentFolderId, string name, string? excludeId = null,
+        public async Task<bool> ExistsByNameAsync(string? parentFolderId, string name, string? excludeId = null,
             CancellationToken ct = default)
         {
-            // Incluye enabled: true para que Mongo pueda usar el índice parcial ux_folders_parent_name
             var filter = Builders<Folder>.Filter.And(
                 Builders<Folder>.Filter.Eq(x => x.ParentFolderId, parentFolderId),
                 Builders<Folder>.Filter.Eq(x => x.NormalizedName, Folder.Normalize(name)),
-                Builders<Folder>.Filter.Eq(x => x.Enabled, true),
                 excludeId is null
                     ? Builders<Folder>.Filter.Empty
                     : Builders<Folder>.Filter.Ne(x => x.Id, excludeId));
@@ -97,23 +82,15 @@ namespace PersonalNotes.Infrastructure.Persistence
                 .ConfigureAwait(false);
         }
 
-        public async Task<long> DisableManyAsync(IReadOnlyCollection<string> ids, DateTime now,
-            CancellationToken ct = default)
+        public async Task<long> DeleteManyAsync(IReadOnlyCollection<string> ids, CancellationToken ct = default)
         {
             if (ids.Count == 0) return 0;
 
-            var filter = Builders<Folder>.Filter.And(
-                Builders<Folder>.Filter.In(x => x.Id, ids),
-                Builders<Folder>.Filter.Eq(x => x.Enabled, true));
-            var update = Builders<Folder>.Update
-                .Set(x => x.Enabled, false)
-                .Set(x => x.UpdatedOn, now);
-
             var result = await _folders
-                .UpdateManyAsync(filter, update, cancellationToken: ct)
+                .DeleteManyAsync(Builders<Folder>.Filter.In(x => x.Id, ids), ct)
                 .ConfigureAwait(false);
 
-            return result.ModifiedCount;
+            return result.DeletedCount;
         }
 
         public async Task ReplaceAllAsync(IReadOnlyCollection<Folder> folders, CancellationToken ct = default)

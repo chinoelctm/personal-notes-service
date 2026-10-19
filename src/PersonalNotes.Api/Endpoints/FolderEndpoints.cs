@@ -19,15 +19,15 @@ namespace PersonalNotes.Api.Endpoints
                 .WithOpenApi();
 
             group.MapGet("/", GetAsync)
-                .WithSummary("Carpetas activas (lista plana con parentFolderId, nivel, ruta y cantidad de documentos).");
+                .WithSummary("Carpetas (lista plana con parentFolderId, nivel, ruta y cantidad de documentos).");
             group.MapPost("/", AddAsync)
                 .WithSummary("Crea una carpeta en la raíz o dentro de otra, respetando la profundidad máxima del árbol.");
             group.MapPut("/{folderId}", UpdateAsync)
                 .WithSummary("Renombra y/o mueve la carpeta con todo su contenido. 400 si crea un ciclo o supera la profundidad.");
             group.MapDelete("/{folderId}", DeleteAsync)
-                .WithSummary("Elimina (desactiva) la carpeta, sus subcarpetas y sus documentos.");
+                .WithSummary("Borra de forma permanente la carpeta, sus subcarpetas y sus documentos.");
             group.MapGet("/{folderId}/documents", GetDocumentsAsync)
-                .WithSummary("Documentos activos de la carpeta, el editado más recientemente primero.");
+                .WithSummary("Documentos de la carpeta, el editado más recientemente primero.");
 
             return app;
         }

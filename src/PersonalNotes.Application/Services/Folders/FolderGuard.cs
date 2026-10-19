@@ -4,7 +4,7 @@ using PersonalNotes.Domain.Repositories;
 
 namespace PersonalNotes.Application.Services.Folders
 {
-    /// <summary>Un documento solo se puede crear o mover a una carpeta activa.</summary>
+    /// <summary>Un documento solo se puede crear o mover a una carpeta que exista.</summary>
     public class FolderGuard : IFolderGuard
     {
         private readonly IFolderRepository _repository;
@@ -16,10 +16,10 @@ namespace PersonalNotes.Application.Services.Folders
             _logger = logger;
         }
 
-        public async Task EnsureActiveAsync(string folderId, CancellationToken ct = default)
+        public async Task EnsureExistsAsync(string folderId, CancellationToken ct = default)
         {
             var folder = await _repository.GetByIdAsync(folderId, ct);
-            if (folder is not null && folder.Enabled) return;
+            if (folder is not null) return;
 
             _logger.LogError("No existe la carpeta {FolderId}.", folderId);
             throw new NotFoundException("La carpeta no existe.");

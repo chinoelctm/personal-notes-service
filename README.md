@@ -30,8 +30,9 @@ Toda la configuración vive en `appsettings.json` (también se puede sobrescribi
 | `Cors:AllowedOrigins` | `["http://localhost:4200"]` | Orígenes del front (política `FrontCorsPolicy`) |
 | `Kestrel:Limits:MaxRequestBodySize` | `52428800` (50 MB) | Documentos y respaldos con imágenes |
 
-Al arrancar, un worker en segundo plano (`MongoIndexInitializer`) sincroniza los índices: crea los que
-faltan y elimina los propios (`ix_*`/`ux_*`) que ya no se usan. Si MongoDB no responde, la API arranca
+Al arrancar, un worker en segundo plano (`MongoIndexInitializer`) primero migra los datos del antiguo borrado
+lógico (borra los registros con `enabled: false` y quita el campo de los demás; es idempotente) y luego
+sincroniza los índices: crea los que faltan y elimina los propios (`ix_*`/`ux_*`) que ya no se usan. Si MongoDB no responde, la API arranca
 igual y reintenta con espera creciente (5 s, 10 s, … hasta 5 min); mientras tanto, los endpoints que usan
 la base responden **503** y `GET /api/v1/health` informa `Degraded`.
 
@@ -69,8 +70,8 @@ solo para registrar sus servicios).
 
 | Colección | Contenido |
 |---|---|
-| `folders` | Carpetas: `name`, `normalizedName`, `parentFolderId` (null = raíz), `enabled`, `createdOn`, `updatedOn` |
-| `documents` | Documentos: `folderId`, `title`, `content` (HTML), `priority` (`None`/`Low`/`Medium`/`High`), `enabled`, `createdOn`, `updatedOn` |
+| `folders` | Carpetas: `name`, `normalizedName`, `parentFolderId` (null = raíz), `createdOn`, `updatedOn` |
+| `documents` | Documentos: `folderId`, `title`, `content` (HTML), `priority` (`None`/`Low`/`Medium`/`High`), `createdOn`, `updatedOn` |
 
 Los Id son `ObjectId` y viajan como texto de 24 caracteres. Las fechas de auditoría se asignan en el
 backend y siempre en UTC (`TimeHelper.GetUtcNow()`); el front las muestra en la hora local.
@@ -82,22 +83,23 @@ ninguna ordena en memoria (sin etapa `SORT`).
 
 | Colección | Índice | Claves | Consultas que resuelve |
 |---|---|---|---|
-| `folders` | `ux_folders_parent_name` | `parentFolderId, normalizedName` (único, parcial `enabled: true`) | Nombre duplicado entre carpetas hermanas activas (también en la raíz, `parentFolderId: null`) |
-| `folders` | `ix_folders_active_name` | `enabled, normalizedName` | Carpetas activas ordenadas por nombre; todas para el respaldo (mismo orden) |
-| `documents` | `ix_documents_active_updated` | `enabled, updatedOn ↓` | Documentos activos por última edición; proyección liviana para estadísticas; respaldo |
-| `documents` | `ix_documents_folder_updated` | `folderId, enabled, updatedOn ↓` | Documentos de una carpeta por última edición; borrado en cascada (`folderId $in`) |
+| `folders` | `ux_folders_name_in_parent` | `parentFolderId, normalizedName` (único) | Nombre duplicado entre carpetas hermanas (también en la raíz, `parentFolderId: null`) |
+| `folders` | `ix_folders_name` | `normalizedName` | Todas las carpetas ordenadas por nombre (árbol y respaldo) |
+| `documents` | `ix_documents_updated` | `updatedOn ↓` | Documentos por última edición; proyección liviana para estadísticas; asistente; respaldo |
+| `documents` | `ix_documents_folder_updated_on` | `folderId, updatedOn ↓` | Documentos de una carpeta por última edición; borrado en cascada (`folderId $in`) |
 
-`GetById` y la desactivación de carpetas (`_id $in`) usan el índice `_id_`.
+`GetById`, el borrado de un documento y el de carpetas (`_id $in`) usan el índice `_id_`.
 
 ## Reglas de negocio
 
 - **Árbol**: una carpeta raíz es el nivel 1; se permiten hasta `Notes:MaxFolderDepth` niveles (5 por
   defecto, mínimo 3). Mover una carpeta cuenta la altura de todo su subárbol y no se puede mover dentro de
   sí misma ni de sus subcarpetas (400).
-- **Nombres**: no puede haber dos carpetas activas con el mismo nombre en la misma ubicación (409; el índice
+- **Nombres**: no puede haber dos carpetas con el mismo nombre en la misma ubicación (409; el índice
   único lo garantiza también ante altas simultáneas).
-- **Borrado lógico**: eliminar una carpeta desactiva (`enabled: false`) la carpeta, todas sus subcarpetas
-  y sus documentos; eliminar un documento lo desactiva. Los respaldos incluyen los elementos desactivados.
+- **Borrado físico**: eliminar un documento lo borra de la base; eliminar una carpeta borra la carpeta, todas
+  sus subcarpetas y sus documentos (primero los documentos, para no dejar huérfanos si algo falla a mitad).
+  No quedan registros desactivados, así que la base solo guarda lo que está en uso.
 - **Documentos**: título vacío se publica como "Sin título" (máx. 200 caracteres); el contenido admite
   hasta 12 millones de caracteres (las imágenes van en Base64 dentro del HTML). Solo se crean o mueven a
   carpetas activas.
@@ -110,7 +112,8 @@ ninguna ordena en memoria (sin etapa `SORT`).
   relevantes para la pregunta (coincidencia de palabras sin tildes, el título pesa más; sin coincidencias van los
   editados más recientemente), con un tope de 40.000 caracteres. Gemini responde citando los documentos y la API
   devuelve las fuentes. `searchNotes: false` desactiva la búsqueda.
-- **Respaldo**: `POST /backup` valida todo el archivo (Id repetidos, padres inexistentes, ciclos,
+- **Respaldo** (versión 2): `POST /backup` también acepta respaldos de la versión 1 (con `enabled`) y omite lo
+  que estaba marcado como eliminado. Valida todo el archivo (Id repetidos, padres inexistentes, ciclos,
   profundidad, documentos huérfanos) antes de reemplazar los datos.
 
 ## Endpoints (`/api/v1`)
@@ -121,13 +124,13 @@ ninguna ordena en memoria (sin etapa `SORT`).
 | GET    | `/folders` | Carpetas activas (lista plana): `id, name, parentFolderId, depth, path[], documentCount, createdOn, updatedOn` |
 | POST   | `/folders` | 201 `{ id }`, body `{ "name": "Sprints Q3", "parentFolderId": "…" \| null }` |
 | PUT    | `/folders/{id}` | 204, renombra y/o mueve (400 ciclo/profundidad, 409 nombre repetido) |
-| DELETE | `/folders/{id}` | 204, desactiva la carpeta, sus subcarpetas y sus documentos |
+| DELETE | `/folders/{id}` | 204, borra de forma permanente la carpeta, sus subcarpetas y sus documentos |
 | GET    | `/folders/{id}/documents` | Documentos activos de la carpeta, el editado más recientemente primero |
 | GET    | `/documents` | Todos los documentos activos con contenido, por última edición |
 | GET    | `/documents/{id}` | Documento activo |
 | POST   | `/documents` | 201 `{ id, updatedOn }`, body `{ "folderId", "title", "content", "priority": "High" }` |
 | PUT    | `/documents/{id}` | 200 `{ id, updatedOn }` (publica la nueva versión; otro `folderId` lo mueve) |
-| DELETE | `/documents/{id}` | 204, lo desactiva |
+| DELETE | `/documents/{id}` | 204, lo borra de forma permanente (404 si ya no existe) |
 | GET    | `/dashboard` | `{ totalDocuments, totalFolders, byPriority: { high, medium, low, none }, recentlyEdited, recentWindowHours, lastEditedOn }` |
 | GET    | `/assistant/status` | `{ configured, provider, model }` (nunca devuelve la clave) |
 | POST   | `/assistant/ask` | `{ answer, model, sources: [{ id, title, path }] }`, body `{ question, searchNotes: true, context: { title, text, documentId } | null, history: [{ role: User|Assistant, text }] }`. 503 sin clave, 429 límite, 502 error de Gemini |

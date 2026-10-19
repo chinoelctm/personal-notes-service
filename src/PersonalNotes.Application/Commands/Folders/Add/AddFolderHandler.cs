@@ -34,7 +34,7 @@ namespace PersonalNotes.Application.Commands.Folders.Add
             var hierarchy = await _hierarchyProvider.GetAsync(ct);
             hierarchy.EnsureCanPlace(folderId: null, folder.ParentFolderId, _options.MaxFolderDepth);
 
-            if (await _repository.ExistsActiveByNameAsync(folder.ParentFolderId, folder.Name, ct: ct))
+            if (await _repository.ExistsByNameAsync(folder.ParentFolderId, folder.Name, ct: ct))
                 throw new ConflictException("Ya existe una carpeta con ese nombre en la misma ubicación.");
 
             await _repository.AddAsync(folder, ct);

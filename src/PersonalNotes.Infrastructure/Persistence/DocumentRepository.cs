@@ -37,72 +37,57 @@ namespace PersonalNotes.Infrastructure.Persistence
                 .ConfigureAwait(false);
         }
 
-        // Última edición primero. Coincide con los índices ix_documents_*_updated, así Mongo no ordena en memoria
+        // Última edición primero. Coincide con ix_documents_updated / ix_documents_folder_updated: sin orden en memoria
         private static readonly SortDefinition<Document> LastEditedFirst = Builders<Document>.Sort
             .Descending(x => x.UpdatedOn);
 
-        private static readonly FilterDefinition<Document> Active = Builders<Document>.Filter.Eq(x => x.Enabled, true);
-
-        public async Task<List<Document>> GetActiveAsync(CancellationToken ct = default)
+        public async Task<List<Document>> GetAllAsync(CancellationToken ct = default)
         {
             return await _documents
-                .Find(Active)
+                .Find(Builders<Document>.Filter.Empty)
                 .Sort(LastEditedFirst)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
         }
 
-        public async Task<List<Document>> GetActiveByFolderAsync(string folderId, CancellationToken ct = default)
+        public async Task<List<Document>> GetByFolderAsync(string folderId, CancellationToken ct = default)
         {
-            var filter = Builders<Document>.Filter.And(
-                Builders<Document>.Filter.Eq(x => x.FolderId, folderId),
-                Active);
-
             return await _documents
-                .Find(filter)
+                .Find(Builders<Document>.Filter.Eq(x => x.FolderId, folderId))
                 .Sort(LastEditedFirst)
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
         }
 
-        public async Task<List<DocumentStamp>> GetActiveStampsAsync(CancellationToken ct = default)
+        public async Task<List<DocumentStamp>> GetStampsAsync(CancellationToken ct = default)
         {
             // Solo carpeta, prioridad y fecha: no trae el contenido (que puede pesar varios MB por las imágenes)
             return await _documents
-                .Find(Active)
+                .Find(Builders<Document>.Filter.Empty)
                 .Sort(LastEditedFirst)
                 .Project(x => new DocumentStamp(x.Id, x.FolderId, x.Priority, x.UpdatedOn))
                 .ToListAsync(ct)
                 .ConfigureAwait(false);
         }
 
-        public async Task<List<Document>> GetAllAsync(CancellationToken ct = default)
+        public async Task<bool> DeleteAsync(string id, CancellationToken ct = default)
         {
-            // Mismo orden que ix_documents_active_updated (enabled, updatedOn ↓)
-            return await _documents
-                .Find(Builders<Document>.Filter.Empty)
-                .Sort(Builders<Document>.Sort.Ascending(x => x.Enabled).Descending(x => x.UpdatedOn))
-                .ToListAsync(ct)
+            var result = await _documents
+                .DeleteOneAsync(Builders<Document>.Filter.Eq(x => x.Id, id), ct)
                 .ConfigureAwait(false);
+
+            return result.DeletedCount > 0;
         }
 
-        public async Task<long> DisableByFoldersAsync(IReadOnlyCollection<string> folderIds, DateTime now,
-            CancellationToken ct = default)
+        public async Task<long> DeleteByFoldersAsync(IReadOnlyCollection<string> folderIds, CancellationToken ct = default)
         {
             if (folderIds.Count == 0) return 0;
 
-            var filter = Builders<Document>.Filter.And(
-                Builders<Document>.Filter.In(x => x.FolderId, folderIds),
-                Active);
-            var update = Builders<Document>.Update
-                .Set(x => x.Enabled, false)
-                .Set(x => x.UpdatedOn, now);
-
             var result = await _documents
-                .UpdateManyAsync(filter, update, cancellationToken: ct)
+                .DeleteManyAsync(Builders<Document>.Filter.In(x => x.FolderId, folderIds), ct)
                 .ConfigureAwait(false);
 
-            return result.ModifiedCount;
+            return result.DeletedCount;
         }
 
         public async Task ReplaceAllAsync(IReadOnlyCollection<Document> documents, CancellationToken ct = default)

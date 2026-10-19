@@ -18,7 +18,7 @@ namespace PersonalNotes.Application.Queries.Folders.Get
         public async Task<List<FolderResponse>> Handle(GetFoldersQuery query, CancellationToken ct)
         {
             var hierarchy = await _hierarchyProvider.GetAsync(ct);
-            var stamps = await _documents.GetActiveStampsAsync(ct);
+            var stamps = await _documents.GetStampsAsync(ct);
             var countByFolder = stamps
                 .GroupBy(s => s.FolderId)
                 .ToDictionary(g => g.Key, g => g.Count());

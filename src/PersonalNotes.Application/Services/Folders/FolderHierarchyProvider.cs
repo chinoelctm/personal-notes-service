@@ -13,7 +13,7 @@ namespace PersonalNotes.Application.Services.Folders
 
         public async Task<FolderHierarchy> GetAsync(CancellationToken ct = default)
         {
-            var folders = await _repository.GetActiveAsync(ct);
+            var folders = await _repository.GetAllAsync(ct);
             return new FolderHierarchy(folders);
         }
     }

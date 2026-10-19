@@ -25,7 +25,7 @@ namespace PersonalNotes.Application.Commands.Documents.Add
 
         public async Task<AddDocumentResponse> Handle(AddDocumentCommand command, CancellationToken ct)
         {
-            await _folderGuard.EnsureActiveAsync(command.FolderId, ct);
+            await _folderGuard.EnsureExistsAsync(command.FolderId, ct);
 
             var document = Document.Create(command.FolderId, command.Title, command.Content, command.Priority,
                 _timeHelper.GetUtcNow());

@@ -26,14 +26,14 @@ namespace PersonalNotes.Application.Commands.Documents.Update
         public async Task<UpdateDocumentResponse> Handle(UpdateDocumentCommand command, CancellationToken ct)
         {
             var document = await _repository.GetByIdAsync(command.Id, ct);
-            if (document is null || !document.Enabled)
+            if (document is null)
             {
                 _logger.LogError("No existe el documento {DocumentId}.", command.Id);
                 throw new NotFoundException("El documento no existe.");
             }
 
             if (document.FolderId != command.FolderId)
-                await _folderGuard.EnsureActiveAsync(command.FolderId, ct);
+                await _folderGuard.EnsureExistsAsync(command.FolderId, ct);
 
             document.Update(command.FolderId, command.Title, command.Content, command.Priority, _timeHelper.GetUtcNow());
             await _repository.UpdateAsync(document, ct);

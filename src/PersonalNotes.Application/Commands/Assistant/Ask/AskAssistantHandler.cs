@@ -51,7 +51,7 @@ namespace PersonalNotes.Application.Commands.Assistant.Ask
         private async Task<NotesKnowledge> BuildKnowledgeAsync(string question, string? openDocumentId, CancellationToken ct)
         {
             var hierarchy = await _hierarchyProvider.GetAsync(ct);
-            var documents = await _documents.GetActiveAsync(ct);
+            var documents = await _documents.GetAllAsync(ct);
 
             var notes = documents
                 .Where(d => hierarchy.Contains(d.FolderId))

@@ -9,12 +9,12 @@ namespace PersonalNotes.Tests.Domain
         private static readonly DateTime Now = new(2026, 10, 16, 12, 0, 0, DateTimeKind.Utc);
 
         [Fact]
-        public void Create_TrimsAndNormalizesName_AndStartsEnabled()
+        public void Create_TrimsAndNormalizesName()
         {
             var folder = Folder.Create("  Trabajo & Empresa ", null, Now);
 
-            Assert.Equal(("Trabajo & Empresa", "trabajo & empresa", true, true),
-                (folder.Name, folder.NormalizedName, folder.Enabled, folder.IsRoot));
+            Assert.Equal(("Trabajo & Empresa", "trabajo & empresa", true),
+                (folder.Name, folder.NormalizedName, folder.IsRoot));
             Assert.True(ObjectIds.IsValid(folder.Id));
             Assert.Equal((Now, Now), (folder.CreatedOn, folder.UpdatedOn));
         }
@@ -63,26 +63,12 @@ namespace PersonalNotes.Tests.Domain
         }
 
         [Fact]
-        public void Disable_IsIdempotent_AndBlocksFurtherUpdates()
-        {
-            var folder = Folder.Create("Sprints", null, Now);
-            var later = Now.AddHours(1);
-
-            folder.Disable(later);
-            folder.Disable(later.AddHours(1));
-
-            Assert.False(folder.Enabled);
-            Assert.Equal(later, folder.UpdatedOn);
-            Assert.Throws<BusinessRuleException>(() => folder.Update("Otro", null, later));
-        }
-
-        [Fact]
         public void Restore_KeepsIdAndTreatsUnspecifiedDatesAsUtc()
         {
             var id = ObjectIds.New();
             var unspecified = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Unspecified);
 
-            var folder = Folder.Restore(id, "Raíz", null, enabled: true, unspecified, unspecified);
+            var folder = Folder.Restore(id, "Raíz", null, unspecified, unspecified);
 
             Assert.Equal(id, folder.Id);
             Assert.Equal(DateTimeKind.Utc, folder.CreatedOn.Kind);

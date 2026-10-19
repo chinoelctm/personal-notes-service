@@ -14,8 +14,8 @@ namespace PersonalNotes.Tests.Domain
         {
             var document = Document.Create(FolderId, " Diseño de la API ", "<p>JWT</p>", Priority.High, Now);
 
-            Assert.Equal(("Diseño de la API", "<p>JWT</p>", Priority.High, true),
-                (document.Title, document.Content, document.Priority, document.Enabled));
+            Assert.Equal(("Diseño de la API", "<p>JWT</p>", Priority.High),
+                (document.Title, document.Content, document.Priority));
             Assert.Equal((Now, Now), (document.CreatedOn, document.UpdatedOn));
         }
 
@@ -63,22 +63,11 @@ namespace PersonalNotes.Tests.Domain
         }
 
         [Fact]
-        public void Disabled_CannotBeEdited()
-        {
-            var document = Document.Create(FolderId, "Nota", "", Priority.None, Now);
-            document.Disable(Now.AddMinutes(1));
-
-            Assert.False(document.Enabled);
-            Assert.Throws<BusinessRuleException>(() =>
-                document.Update(FolderId, "Nota", "", Priority.None, Now.AddMinutes(2)));
-        }
-
-        [Fact]
         public void Restore_ConvertsLocalDatesToUtc()
         {
             var local = new DateTime(2026, 5, 1, 10, 0, 0, DateTimeKind.Local);
 
-            var document = Document.Restore(ObjectIds.New(), FolderId, "Nota", "", Priority.High, true, local, local);
+            var document = Document.Restore(ObjectIds.New(), FolderId, "Nota", "", Priority.High, local, local);
 
             Assert.Equal(local.ToUniversalTime(), document.UpdatedOn);
             Assert.Equal(DateTimeKind.Utc, document.UpdatedOn.Kind);

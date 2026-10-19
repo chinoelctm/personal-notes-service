@@ -1,7 +1,7 @@
 namespace PersonalNotes.Application.Queries.Dashboard.Get
 {
-    /// <param name="TotalDocuments">Documentos activos en todo el árbol.</param>
-    /// <param name="TotalFolders">Carpetas activas.</param>
+    /// <param name="TotalDocuments">Documentos en todo el árbol.</param>
+    /// <param name="TotalFolders">Total de carpetas.</param>
     /// <param name="ByPriority">Cantidad de documentos por prioridad.</param>
     /// <param name="RecentlyEdited">Documentos editados dentro de la ventana de <paramref name="RecentWindowHours"/>.</param>
     /// <param name="LastEditedOn">Última edición de cualquier documento (UTC); null si no hay documentos.</param>

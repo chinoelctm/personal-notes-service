@@ -23,13 +23,13 @@ namespace PersonalNotes.Application.Queries.Folders.GetDocuments
         public async Task<List<DocumentResponse>> Handle(GetFolderDocumentsQuery query, CancellationToken ct)
         {
             var folder = await _folders.GetByIdAsync(query.FolderId, ct);
-            if (folder is null || !folder.Enabled)
+            if (folder is null)
             {
                 _logger.LogError("No existe la carpeta {FolderId}.", query.FolderId);
                 throw new NotFoundException("La carpeta no existe.");
             }
 
-            var documents = await _documents.GetActiveByFolderAsync(query.FolderId, ct);
+            var documents = await _documents.GetByFolderAsync(query.FolderId, ct);
             return documents.Select(DocumentResponse.From).ToList();
         }
     }

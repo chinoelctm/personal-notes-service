@@ -19,7 +19,7 @@ namespace PersonalNotes.Application.Queries.Documents.GetById
         public async Task<DocumentResponse> Handle(GetDocumentByIdQuery query, CancellationToken ct)
         {
             var document = await _repository.GetByIdAsync(query.Id, ct);
-            if (document is null || !document.Enabled)
+            if (document is null)
             {
                 _logger.LogError("No existe el documento {DocumentId}.", query.Id);
                 throw new NotFoundException("El documento no existe.");

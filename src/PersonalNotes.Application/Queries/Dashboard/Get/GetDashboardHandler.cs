@@ -28,9 +28,9 @@ namespace PersonalNotes.Application.Queries.Dashboard.Get
         public async Task<GetDashboardResponse> Handle(GetDashboardQuery query, CancellationToken ct)
         {
             var hierarchy = await _hierarchyProvider.GetAsync(ct);
-            var stamps = await _documents.GetActiveStampsAsync(ct);
+            var stamps = await _documents.GetStampsAsync(ct);
 
-            // Un documento cuya carpeta ya no está activa no se ve en el árbol: tampoco se cuenta
+            // Un documento cuya carpeta ya no existe no se ve en el árbol: tampoco se cuenta
             var visible = stamps.Where(s => hierarchy.Contains(s.FolderId)).ToList();
 
             return _calculator.Calculate(visible, hierarchy.Folders.Count, _timeHelper.GetUtcNow(),

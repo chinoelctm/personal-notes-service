@@ -18,7 +18,7 @@ namespace PersonalNotes.Application.Queries.Documents.Get
         public async Task<List<DocumentResponse>> Handle(GetDocumentsQuery query, CancellationToken ct)
         {
             var hierarchy = await _hierarchyProvider.GetAsync(ct);
-            var documents = await _documents.GetActiveAsync(ct);
+            var documents = await _documents.GetAllAsync(ct);
 
             // Solo los que cuelgan de una carpeta visible en el árbol
             return documents

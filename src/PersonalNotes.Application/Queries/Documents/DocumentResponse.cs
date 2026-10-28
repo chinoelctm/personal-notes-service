@@ -3,8 +3,8 @@ using PersonalNotes.Domain.ValueObjects;
 
 namespace PersonalNotes.Application.Queries.Documents
 {
-    /// <param name="Content">HTML del editor (Rich) o código de la página (Html).</param>
-    /// <param name="Type">Rich o Html.</param>
+    /// <param name="Content">HTML del editor (Rich), código de la página (Html) o texto Markdown (Markdown).</param>
+    /// <param name="Type">Rich, Html o Markdown.</param>
     /// <param name="CreatedOn">UTC.</param>
     /// <param name="UpdatedOn">UTC; ordena los listados por última edición.</param>
     public record DocumentResponse(

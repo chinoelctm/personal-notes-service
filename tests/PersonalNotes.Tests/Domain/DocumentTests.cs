@@ -76,6 +76,9 @@ namespace PersonalNotes.Tests.Domain
             pagina.Update(FolderId, "Página v3", "<p>ahora nota</p>", Priority.Low, Now.AddMinutes(2), DocumentType.Rich);
             Assert.Equal(DocumentType.Rich, pagina.Type);
             Assert.Throws<DomainException>(() => Document.Create(FolderId, "x", "", Priority.None, Now, (DocumentType)9));
+
+            var markdown = Document.Create(FolderId, "Guía", "# Guía\n\n- uno", Priority.None, Now, DocumentType.Markdown);
+            Assert.Equal(DocumentType.Markdown, markdown.Type);
         }
 
         [Fact]

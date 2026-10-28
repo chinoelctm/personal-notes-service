@@ -85,5 +85,16 @@ namespace PersonalNotes.Tests.Application
             Assert.Equal("Entregables Revisión & pruebas Uno Dos", HtmlText.ToPlainText(html));
             Assert.Equal(string.Empty, HtmlText.ToPlainText(null));
         }
+
+        [Fact]
+        public void MarkdownText_KeepsTheSyntax_DropsImages_AndKeepsLinkText()
+        {
+            var markdown = "# Guía\n\nVer **el manual** en [la wiki](https://wiki.example.com).\n\n![diagrama](data:image/png;base64,AAAA)\n\n- Uno";
+
+            Assert.Equal("# Guía Ver **el manual** en la wiki. diagrama - Uno",
+                MarkdownText.ToPlainText(markdown, PersonalNotes.Domain.ValueObjects.DocumentType.Markdown));
+            // Los demás tipos siguen pasando por HtmlText
+            Assert.Equal("Hola", MarkdownText.ToPlainText("<p>Hola</p>", PersonalNotes.Domain.ValueObjects.DocumentType.Rich));
+        }
     }
 }

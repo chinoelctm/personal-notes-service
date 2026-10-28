@@ -59,7 +59,7 @@ namespace PersonalNotes.Application.Commands.Assistant.Ask
                     d.Id,
                     d.Title,
                     string.Join(" / ", hierarchy.PathOf(d.FolderId).Select(f => f.Name)),
-                    HtmlText.ToPlainText(d.Content),
+                    MarkdownText.ToPlainText(d.Content, d.Type),
                     d.Priority,
                     d.UpdatedOn))
                 .ToList();

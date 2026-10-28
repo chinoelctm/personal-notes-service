@@ -91,7 +91,7 @@ solo para registrar sus servicios).
 | Colección | Contenido |
 |---|---|
 | `folders` | Carpetas: `name`, `normalizedName`, `parentFolderId` (null = raíz), `createdOn`, `updatedOn` |
-| `documents` | Documentos: `folderId`, `title`, `content` (HTML), `priority` (`None`/`Low`/`Medium`/`High`), `type` (`Rich`/`Html`; sin el campo = `Rich`), `createdOn`, `updatedOn` |
+| `documents` | Documentos: `folderId`, `title`, `content` (HTML), `priority` (`None`/`Low`/`Medium`/`High`), `type` (`Rich`/`Html`/`Markdown`; sin el campo = `Rich`), `createdOn`, `updatedOn` |
 
 Los Id son `ObjectId` y viajan como texto de 24 caracteres. Las fechas de auditoría se asignan en el
 backend y siempre en UTC (`TimeHelper.GetUtcNow()`); el front las muestra en la hora local.
@@ -119,7 +119,9 @@ ninguna ordena en memoria (sin etapa `SORT`).
   único lo garantiza también ante altas simultáneas).
 - **Tipos de documento**: `Rich` es una nota del editor enriquecido; `Html` es una página HTML propia (con su CSS
   y JavaScript) que el front muestra en un iframe aislado. Para el buscador y el asistente solo cuenta su texto
-  visible: los `<script>` y `<style>` se ignoran. Los documentos anteriores al campo se leen como `Rich`.
+  visible: los `<script>` y `<style>` se ignoran. `Markdown` es texto en Markdown que el front muestra como
+  documento; al asistente le llega con su sintaxis (la entiende), sin imágenes y con el texto de los enlaces. Los
+  documentos anteriores al campo se leen como `Rich`.
 - **Borrado físico**: eliminar un documento lo borra de la base; eliminar una carpeta borra la carpeta, todas
   sus subcarpetas y sus documentos (primero los documentos, para no dejar huérfanos si algo falla a mitad).
   No quedan registros desactivados, así que la base solo guarda lo que está en uso.
@@ -153,7 +155,7 @@ Todos requieren la cookie `auth_token` (401 sin sesión), salvo `/health`.
 | GET    | `/folders/{id}/documents` | Documentos activos de la carpeta, el editado más recientemente primero |
 | GET    | `/documents` | Todos los documentos activos con contenido, por última edición |
 | GET    | `/documents/{id}` | Documento activo |
-| POST   | `/documents` | 201 `{ id, updatedOn }`, body `{ "folderId", "title", "content", "priority": "High", "type": "Rich" \| "Html" }` |
+| POST   | `/documents` | 201 `{ id, updatedOn }`, body `{ "folderId", "title", "content", "priority": "High", "type": "Rich" \| "Html" \| "Markdown" }` |
 | PUT    | `/documents/{id}` | 200 `{ id, updatedOn }` (publica la nueva versión; otro `folderId` lo mueve; `type` null conserva el tipo) |
 | DELETE | `/documents/{id}` | 204, lo borra de forma permanente (404 si ya no existe) |
 | GET    | `/dashboard` | `{ totalDocuments, totalFolders, byPriority: { high, medium, low, none }, recentlyEdited, recentWindowHours, lastEditedOn }` |

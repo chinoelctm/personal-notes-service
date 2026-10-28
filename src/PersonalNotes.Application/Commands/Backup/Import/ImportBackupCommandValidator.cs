@@ -38,7 +38,7 @@ namespace PersonalNotes.Application.Commands.Backup.Import
                     document.RuleFor(d => d.Title).MustBeValidTitle();
                     document.RuleFor(d => d.Content).MustBeValidContent();
                     document.RuleFor(d => d.Priority).MustBeValidPriority();
-                    document.RuleFor(d => d.Type).IsInEnum().WithMessage("El tipo debe ser Rich o Html.");
+                    document.RuleFor(d => d.Type).IsInEnum().WithMessage("El tipo debe ser Rich, Html o Markdown.");
                 });
             });
         }
